@@ -3,11 +3,13 @@ package task
 import (
 	"context"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/maadiii/taskmanager/internal/domain/task"
+	"github.com/maadiii/taskmanager/pkg/errors"
 )
 
 func (r *repo) GetTaskByIdAndOwner(ctx context.Context, id, ownerId string) (*task.Entity, error) {
-	row := r.client.QueryRow(ctx, GetByIdQuery, id)
+	row := r.client.QueryRow(ctx, GetByIdAndOwnerQuery, id, ownerId)
 
 	entity := new(task.Entity)
 	err := row.Scan(
@@ -16,25 +18,27 @@ func (r *repo) GetTaskByIdAndOwner(ctx context.Context, id, ownerId string) (*ta
 		&entity.Description,
 		&entity.Status,
 		&entity.Priority,
-		&entity.DueDate,
 		&entity.CreatedAt,
 		&entity.UpdatedAt,
 	)
-	if err != nil {
-		return nil, err
+	if nil == err {
+		return entity, nil
 	}
 
-	return entity, nil
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, errors.NotFound(err, "task_id")
+	}
+
+	return nil, err
 }
 
-const GetByIdQuery = `
+const GetByIdAndOwnerQuery = `
 SELECT
 	id, 
 	title, 
-	description
+	description,
 	status,
 	priority,
-	due_date
 	created_at,
 	updated_at
 FROM tasks WHERE id = $1 AND user_id = $2

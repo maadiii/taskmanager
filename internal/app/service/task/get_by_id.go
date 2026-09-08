@@ -22,7 +22,6 @@ func (s *service) getByIdRs(entity *task.Entity) *dto.GetByIdRs {
 		Description:      entity.Description,
 		Status:           entity.Status.String(),
 		Priority:         entity.Priority.String(),
-		DueDateUnixSec:   entity.DueDate.Unix(),
 		CreatedAtUnixSec: entity.CreatedAt.Unix(),
 	}
 }

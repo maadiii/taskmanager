@@ -16,7 +16,6 @@ type Entity struct {
 	Description string
 	Status      Status
 	Priority    Priority
-	DueDate     time.Time
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }

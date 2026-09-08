@@ -11,6 +11,7 @@ import (
 	"github.com/maadiii/taskmanager/config"
 	"github.com/maadiii/taskmanager/internal/app/port"
 	"github.com/maadiii/taskmanager/pkg/appcontext"
+	"github.com/maadiii/taskmanager/pkg/errors"
 	"go.uber.org/fx"
 )
 
@@ -28,6 +29,7 @@ type Param struct {
 
 func NewApiGroupRouter(lc fx.Lifecycle, cfg *config.Config) *gin.RouterGroup {
 	g := gin.Default()
+	g.Use(errors.HandleHttpError)
 	rg := g.Group("/api")
 
 	srv := &http.Server{
@@ -78,6 +80,7 @@ func handle[
 		}
 
 		requestID := rand.Text()
+		c.Header("request-id", requestID)
 
 		ctx := &appcontext.Context{
 			Context:   c.Request.Context(),
@@ -90,13 +93,11 @@ func handle[
 		}
 		out, err := fn(ctx, &body)
 		if err != nil {
-			// NOTE: use a good error handler
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-				"error": err.Error(),
-			})
-		}
+			_ = c.Error(err)
+			c.Abort()
 
-		c.Header("request-id", requestID)
+			return
+		}
 
 		c.JSON(statusCode, out)
 	}
@@ -143,13 +144,13 @@ const (
 func authorize(roles ...string) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		// Get userId by real world authorization mechanism(seesion, jwt, paseto .etc)
-		ctx.Set(userIdKey, "authorized")
+		ctx.Set(userIdKey, "01a081e5-87cb-7f89-bbbc-5a6cd8cae373")
 
 		// Get roles by real world authorization mechanism(seesion, jwt, paseto .etc)
 		ctx.Set(roleKey, roles)
 
 		// Get permissions by real world authorization mechanism(seesion, jwt, paseto .etc)
-		// Permissions check must be in business layer, it just get permissions and sets to ctx
+		// Permissions checking must be in the business layer, it just get permissions and sets to ctx
 		ctx.Set(permissionsKey, []string{"create", "read", "update", "delete"})
 	}
 }

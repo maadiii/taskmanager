@@ -4,29 +4,34 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-func Pg(err *pgconn.PgError) error {
-	switch err.Code {
-	case pgerrcode.UniqueViolation:
-		return uniqueViolation(err)
-	case pgerrcode.CaseNotFound:
-		return notfound(err)
-	default:
-		return err
+func IsConstraint(err error, consName string) bool {
+	if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok &&
+		consName == pgErr.ConstraintName {
+		return true
 	}
+
+	return false
 }
 
-func uniqueViolation(err *pgconn.PgError) error {
-	name := fmt.Sprintf("%s_%s", err.TableName, err.ColumnName)
+func UniqueViolation(err error, tableName, columnName string) error {
+	msg := fmt.Sprintf("%s_%s already exists", tableName, columnName)
 
 	return &Error{
-		error: errors.New(err.Error()),
-		key:   makeErrorKey(name),
+		error: New(err.Error()),
+		key:   makeErrorKey(msg),
+		code:  alreadyExists,
 	}
 }
 
-func notfound(err *pgconn.PgError) error {
+func NotFound(err error, what string) error {
+	msg := fmt.Sprintf("%s not found", what)
+
+	return &Error{
+		error: New(err.Error()),
+		key:   makeErrorKey(msg),
+		code:  notFound,
+	}
 }

@@ -8,9 +8,18 @@ import (
 	"github.com/pkg/errors"
 )
 
+type code int
+
+const (
+	notFound code = iota
+	alreadyExists
+)
+
 type Error struct {
 	error
 	key string
+
+	code code
 }
 
 func New(text string) error {

@@ -41,8 +41,11 @@ func (s *service) create(ctx *appcontext.Context, task *task.Entity) error {
 
 func (s *service) createTaskRs(task *task.Entity) (*dto.CreateTaskRs, error) {
 	return &dto.CreateTaskRs{
-		ID:       task.ID,
-		Status:   task.Status.String(),
-		Priority: task.Priority.String(),
+		ID:               task.ID,
+		Title:            task.Title,
+		Description:      task.Description,
+		Status:           task.Status.String(),
+		Priority:         task.Priority.String(),
+		CreatedAtUnixSec: task.CreatedAt.Unix(),
 	}, nil
 }

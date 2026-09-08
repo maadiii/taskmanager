@@ -41,7 +41,7 @@ type RepoFactory struct {
 	client port.Execer
 }
 
-func NewUoW(pool *pgxpool.Pool) uow.UoW[port.RepoFactory] {
+func NewUoW(pool port.Execer) uow.UoW[port.RepoFactory] {
 	return uow.NewPgx(pool, func(tx pgx.Tx) port.RepoFactory {
 		return NewRepoFactory(pool)
 	}).UoW()
