@@ -1,22 +1,78 @@
 package main
 
 import (
-	"log"
+	"context"
+	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/maadiii/taskmanager/internal/application/service/task"
-	"github.com/maadiii/taskmanager/internal/infrastructure/http"
+	"github.com/maadiii/taskmanager/config"
+	"github.com/maadiii/taskmanager/internal/app/port"
+	"github.com/maadiii/taskmanager/internal/app/service/task"
+	"github.com/maadiii/taskmanager/internal/infra/http"
+	"github.com/maadiii/taskmanager/internal/infra/persistence/postgres"
+	taskPg "github.com/maadiii/taskmanager/internal/infra/persistence/postgres/task"
+	"go.uber.org/fx"
 )
 
 func main() {
-	svc := task.NewService(nil)
+	fx.New(
+		// Gracefully shutting down
+		fx.StopTimeout(10*time.Second), //nolint:mnd
 
-	g := gin.Default()
-	rg := g.Group("/api")
+		fx.Provide(context.Background),
+		provieConfig(),
+		providePgDb(),
+		provideRepos(),
+		provideDomain(),
+		provideHttp(),
+		fx.Invoke(http.Route),
+	).Run()
+}
 
-	http.RouteTaskAPIs(rg, svc)
+func provieConfig() fx.Option {
+	return fx.Provide(
+		config.NewConfig,
+	)
+}
 
-	if err := g.Run(":8080"); err != nil {
-		log.Fatalf("failed to run server: %v", err)
-	}
+func providePgDb() fx.Option {
+	return fx.Provide(
+		// Inject postgres pgx pool as port.Execer
+		fx.Annotate(
+			postgres.NewPostgresPool,
+			fx.As(new(port.Execer)),
+		),
+
+		// Inject *postgres.RepoFactory as port.RepoFactory
+		fx.Annotate(
+			postgres.NewRepoFactory,
+			fx.As(new(port.RepoFactory)),
+		),
+	)
+}
+
+func provideRepos() fx.Option {
+	return fx.Provide(
+		postgres.NewUoW,
+
+		fx.Annotate(
+			taskPg.NewRepository,
+			fx.As(new(port.TaskRepo)),
+		),
+	)
+}
+
+func provideDomain() fx.Option {
+	return fx.Provide(
+		// Inject task.Service as port.TaskService
+		fx.Annotate(
+			task.NewService,
+			fx.As(new(port.TaskService)),
+		),
+	)
+}
+
+func provideHttp() fx.Option {
+	return fx.Provide(
+		http.NewApiGroupRouter,
+	)
 }

@@ -5,6 +5,18 @@ import "context"
 type Context struct {
 	context.Context
 
-	UserID    string
 	RequestID string
+
+	Identity Identity
+}
+
+type (
+	Role        string
+	Permissions []string
+)
+
+type Identity struct {
+	UserID      string
+	Role        Role
+	Permissions Permissions
 }
