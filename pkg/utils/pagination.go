@@ -22,6 +22,9 @@ func (p *Pagination) LastID(id string) *Pagination {
 
 func (p *Pagination) Limit(limit int) *Pagination {
 	p.limit = limit
+	if p.limit <= 0 {
+		p.limit = 20
+	}
 
 	return p
 }
@@ -41,7 +44,7 @@ func (p *Pagination) ASC() *Pagination {
 func (p *Pagination) Select(tableName, columnName string, otherColumns ...string) *Pagination {
 	builder := new(strings.Builder)
 	builder.WriteString("SELECT ")
-	fmt.Fprintf(builder, " %s ", columnName)
+	fmt.Fprintf(builder, " %s, ", columnName)
 	if len(otherColumns) > 0 {
 		builder.WriteString(strings.Join(otherColumns, ", "))
 	}
@@ -65,8 +68,7 @@ func (p *Pagination) Paginate(query string, args ...any) (string, []any) {
 	}
 
 	if p.order != "" {
-		fmt.Fprintf(p.query, " ORDER BY id $%d", len(p.args)+1)
-		p.args = append(p.args, p.order)
+		fmt.Fprintf(p.query, " ORDER BY id %s", p.order)
 	}
 
 	if p.limit > 0 {

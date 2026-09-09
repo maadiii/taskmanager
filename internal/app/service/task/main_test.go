@@ -27,6 +27,14 @@ func (m *MockTaskRepo) GetTaskByIdAndOwner(ctx context.Context, id, ownerId stri
 	return args.Get(0).(*domaintask.Entity), args.Error(1)
 }
 
+func (m *MockTaskRepo) List(ctx context.Context, status, userID string, limit int, lastID string) ([]domaintask.Entity, error) {
+	args := m.Called(ctx, status, userID, limit, lastID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]domaintask.Entity), args.Error(1)
+}
+
 func (m *MockTaskRepo) UpdateByIdAndOwner(ctx context.Context, entity *domaintask.Entity) error {
 	args := m.Called(ctx, entity)
 	return args.Error(0)

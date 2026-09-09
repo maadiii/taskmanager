@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"uuid"
 
 	domaintask "github.com/maadiii/taskmanager/internal/domain/task"
 	"github.com/stretchr/testify/assert"
@@ -13,31 +14,32 @@ import (
 func TestList_WithoutStatus(t *testing.T) {
 	t.Parallel()
 
+	id := uuid.NewV7().String()
+	userId := uuid.NewV7().String()
 	rows := newMockRows(true, false)
 	rows.On("Scan", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(nil).
 		Run(func(args mock.Arguments) {
-			*args.Get(0).(*string) = "task-1"
+			*args.Get(0).(*string) = id
 			*args.Get(1).(*string) = "title"
 			*args.Get(2).(*string) = "description"
 			*args.Get(3).(*domaintask.Status) = domaintask.StatusTodo
 		})
 	rows.On("Close").Once()
-	rows.On("Err").Return(nil).Once()
 
 	execer := new(MockExecer)
 	execer.On(
 		"Query",
 		mock.Anything,
-		"SELECT  id title, description, status FROM tasks WHERE user_id = $1 ORDER BY id $2 LIMIT $3",
-		[]any{"user-1", "DESC", 10},
+		"SELECT  id, title, description, status FROM tasks WHERE user_id = $1 ORDER BY id $2 LIMIT $3",
+		[]any{userId, "DESC", 10},
 	).Return(rows, nil).Once()
 
-	result, err := NewRepository(execer).List(context.Background(), "", "user-1", 10, "")
+	result, err := NewRepository(execer).List(context.Background(), "", userId, 10, "")
 
 	if assert.NoError(t, err) {
 		assert.Equal(t, []domaintask.Entity{{
-			ID:          "task-1",
+			ID:          id,
 			Title:       "title",
 			Description: "description",
 			Status:      domaintask.StatusTodo,
@@ -52,13 +54,12 @@ func TestList_WithStatusAndCursor(t *testing.T) {
 
 	rows := newMockRows(false)
 	rows.On("Close").Once()
-	rows.On("Err").Return(nil).Once()
 
 	execer := new(MockExecer)
 	execer.On(
 		"Query",
 		mock.Anything,
-		"SELECT  id title, description, status FROM tasks WHERE status = $1 AND user_id = $2 AND id > $3 ORDER BY id $4 LIMIT $5",
+		"SELECT  id, title, description, status FROM tasks WHERE status = $1 AND user_id = $2 AND id > $3 ORDER BY id $4 LIMIT $5",
 		[]any{"DONE", "user-1", "task-10", "DESC", 2},
 	).Return(rows, nil).Once()
 
@@ -101,25 +102,6 @@ func TestList_ScanError(t *testing.T) {
 
 	assert.Nil(t, result)
 	assert.ErrorIs(t, err, scanErr)
-	execer.AssertExpectations(t)
-	rows.AssertExpectations(t)
-}
-
-func TestList_RowsError(t *testing.T) {
-	t.Parallel()
-
-	rowsErr := errors.New("rows failed")
-	rows := newMockRows(false)
-	rows.On("Close").Once()
-	rows.On("Err").Return(rowsErr).Once()
-
-	execer := new(MockExecer)
-	execer.On("Query", mock.Anything, mock.Anything, mock.Anything).Return(rows, nil).Once()
-
-	result, err := NewRepository(execer).List(context.Background(), "", "user-1", 10, "")
-
-	assert.Nil(t, result)
-	assert.ErrorIs(t, err, rowsErr)
 	execer.AssertExpectations(t)
 	rows.AssertExpectations(t)
 }

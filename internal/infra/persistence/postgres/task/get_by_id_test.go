@@ -34,6 +34,7 @@ func TestGetTaskByIdAndOwner_Success(t *testing.T) {
 		mock.Anything,
 		mock.Anything,
 		mock.Anything,
+		mock.Anything,
 	).Return(nil).Run(func(args mock.Arguments) {
 		dests := []any{
 			args.Get(0),
@@ -43,15 +44,17 @@ func TestGetTaskByIdAndOwner_Success(t *testing.T) {
 			args.Get(4),
 			args.Get(5),
 			args.Get(6),
+			args.Get(7),
 		}
 
 		*dests[0].(*string) = id
-		*dests[1].(*string) = "task-title"
-		*dests[2].(*string) = "task-description"
-		*dests[3].(*domain.Status) = domain.StatusInProgress
-		*dests[4].(*domain.Priority) = domain.PriorityHigh
-		*dests[5].(*time.Time) = createdAt
-		*dests[6].(*time.Time) = updatedAt
+		*dests[1].(*string) = ownerID
+		*dests[2].(*string) = "task-title"
+		*dests[3].(*string) = "task-description"
+		*dests[4].(*domain.Status) = domain.StatusInProgress
+		*dests[5].(*domain.Priority) = domain.PriorityHigh
+		*dests[6].(*time.Time) = createdAt
+		*dests[7].(*time.Time) = updatedAt
 	})
 
 	m.On("QueryRow", mock.Anything, GetByIdAndOwnerQuery, []any{id, ownerID}).Return(row)
@@ -83,6 +86,7 @@ func TestGetTaskByIdAndOwner_NotFound(t *testing.T) {
 	row := &MockRow{}
 	row.On(
 		"Scan",
+		mock.Anything,
 		mock.Anything,
 		mock.Anything,
 		mock.Anything,

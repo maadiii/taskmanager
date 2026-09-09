@@ -53,3 +53,13 @@ type DeleteTaskRs struct {
 	ID      string `json:"id"`
 	Deleted bool   `json:"deleted"`
 }
+
+type ListTaskRq struct {
+	Status string `form:"status" json:"-"`
+	Limit  int    `form:"limit" json:"-" binding:"omitempty,min=1,max=100"`
+	LastID string `form:"last_id" json:"-"`
+}
+
+type ListTaskRs struct {
+	Tasks []GetByIdRs `json:"tasks"`
+}

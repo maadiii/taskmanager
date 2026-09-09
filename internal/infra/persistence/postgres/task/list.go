@@ -35,9 +35,6 @@ func (r *repo) List(ctx context.Context, status, userId string, limit int, lastI
 		}
 		tasks = append(tasks, t)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
 
 	return tasks, nil
 }

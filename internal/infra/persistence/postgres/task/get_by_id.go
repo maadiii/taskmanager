@@ -14,6 +14,7 @@ func (r *repo) GetTaskByIdAndOwner(ctx context.Context, id, ownerId string) (*ta
 	entity := new(task.Entity)
 	err := row.Scan(
 		&entity.ID,
+		&entity.UserID,
 		&entity.Title,
 		&entity.Description,
 		&entity.Status,
@@ -35,6 +36,7 @@ func (r *repo) GetTaskByIdAndOwner(ctx context.Context, id, ownerId string) (*ta
 const GetByIdAndOwnerQuery = `
 SELECT
 	id, 
+	user_id,
 	title, 
 	description,
 	status,
