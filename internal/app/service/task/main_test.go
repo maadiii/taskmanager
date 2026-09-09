@@ -27,6 +27,16 @@ func (m *MockTaskRepo) GetTaskByIdAndOwner(ctx context.Context, id, ownerId stri
 	return args.Get(0).(*domaintask.Entity), args.Error(1)
 }
 
+func (m *MockTaskRepo) UpdateByIdAndOwner(ctx context.Context, entity *domaintask.Entity) error {
+	args := m.Called(ctx, entity)
+	return args.Error(0)
+}
+
+func (m *MockTaskRepo) DeleteByIdAndOwner(ctx context.Context, id, ownerId string) error {
+	args := m.Called(ctx, id, ownerId)
+	return args.Error(0)
+}
+
 type MockRepoFactory struct {
 	mock.Mock
 }

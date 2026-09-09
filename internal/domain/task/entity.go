@@ -37,3 +37,60 @@ func Create(ctx *appcontext.Context, title, description string) (*Entity, error)
 		UpdatedAt:   time.Now().UTC(),
 	}, nil
 }
+
+func (e *Entity) Update(ctx *appcontext.Context, title, description, status, priority string) error {
+	if !slices.Contains(ctx.Identity.Permissions, "update") {
+		return fmt.Errorf("forbidden")
+	}
+
+	if title != "" {
+		e.Title = title
+	}
+	if description != "" {
+		e.Description = description
+	}
+	if status != "" {
+		parsedStatus, ok := parseStatus(status)
+		if !ok {
+			return fmt.Errorf("invalid status: %s", status)
+		}
+		e.Status = parsedStatus
+	}
+	if priority != "" {
+		parsedPriority, ok := parsePriority(priority)
+		if !ok {
+			return fmt.Errorf("invalid priority: %s", priority)
+		}
+		e.Priority = parsedPriority
+	}
+
+	e.UpdatedAt = time.Now().UTC()
+
+	return nil
+}
+
+func (e *Entity) Delete(ctx *appcontext.Context) error {
+	if !slices.Contains(ctx.Identity.Permissions, "delete") {
+		return fmt.Errorf("forbidden")
+	}
+
+	return nil
+}
+
+func parseStatus(value string) (Status, bool) {
+	switch Status(value) {
+	case StatusTodo, StatusInProgress, StatusDone:
+		return Status(value), true
+	default:
+		return "", false
+	}
+}
+
+func parsePriority(value string) (Priority, bool) {
+	switch Priority(value) {
+	case PriorityLow, PriorityMedium, PriorityHigh:
+		return Priority(value), true
+	default:
+		return "", false
+	}
+}
