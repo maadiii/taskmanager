@@ -25,13 +25,3 @@ func UniqueViolation(err error, tableName, columnName string) error {
 		code:  alreadyExists,
 	}
 }
-
-func NotFound(err error, what string) error {
-	msg := fmt.Sprintf("%s not found", what)
-
-	return &Error{
-		error: New(err.Error()),
-		key:   makeErrorKey(msg),
-		code:  notFound,
-	}
-}

@@ -1,14 +1,18 @@
 package task
 
-import "context"
+import (
+	"context"
+
+	"github.com/maadiii/taskmanager/pkg/errors"
+)
 
 func (r *repo) DeleteByIdAndOwner(ctx context.Context, id, ownerId string) error {
 	_, err := r.client.Exec(ctx, DeleteByIdAndOwnerQuery, id, ownerId)
-	if err == nil {
+	if nil == err {
 		return nil
 	}
 
-	return err
+	return errors.Wrap(err)
 }
 
 const DeleteByIdAndOwnerQuery = `

@@ -25,6 +25,10 @@ func HandleHttpError(c *gin.Context) {
 	c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"key": "INTERNAL_SERVER_ERROR"})
 }
 
+func BadRequest(err error) error {
+	return WrapCK(err, badRequest, "bad request")
+}
+
 func handleAppError(c *gin.Context, err *Error) {
 	var status int
 
@@ -33,6 +37,10 @@ func handleAppError(c *gin.Context, err *Error) {
 		status = http.StatusConflict
 	case notFound:
 		status = http.StatusNotFound
+	case forbidden:
+		status = http.StatusForbidden
+	case badRequest:
+		status = http.StatusBadRequest
 	default:
 		status = http.StatusInternalServerError
 	}

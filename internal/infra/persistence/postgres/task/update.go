@@ -4,6 +4,7 @@ import (
 	"context"
 
 	domain "github.com/maadiii/taskmanager/internal/domain/task"
+	"github.com/maadiii/taskmanager/pkg/errors"
 )
 
 func (r *repo) UpdateByIdAndOwner(ctx context.Context, entity *domain.Entity) error {
@@ -22,7 +23,7 @@ func (r *repo) UpdateByIdAndOwner(ctx context.Context, entity *domain.Entity) er
 		return nil
 	}
 
-	return err
+	return errors.Wrap(err)
 }
 
 const UpdateByIdAndOwnerQuery = `

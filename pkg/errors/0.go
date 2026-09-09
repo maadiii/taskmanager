@@ -8,18 +8,21 @@ import (
 	"github.com/pkg/errors"
 )
 
-type code int
+type Code int
 
 const (
-	notFound code = iota
+	internal Code = iota
+	notFound
 	alreadyExists
+	forbidden
+	badRequest
 )
 
 type Error struct {
 	error
 	key string
 
-	code code
+	code Code
 }
 
 func New(text string) error {
@@ -40,6 +43,30 @@ func Is(err error, target error) bool {
 	}
 
 	return errors.Is(err, target)
+}
+
+func WrapCK(err error, code Code, key string) error {
+	if Is(err, new(Error)) {
+		return err
+	}
+
+	return &Error{
+		error: New(err.Error()),
+		code:  code,
+		key:   makeErrorKey(key),
+	}
+}
+
+func Wrap(err error) error {
+	if Is(err, new(Error)) {
+		return err
+	}
+
+	return &Error{
+		error: New(err.Error()),
+		key:   makeErrorKey("internal"),
+		code:  internal,
+	}
 }
 
 func (e *Error) Format(s fmt.State, verb rune) {

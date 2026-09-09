@@ -7,6 +7,7 @@ import (
 	"uuid"
 
 	"github.com/maadiii/taskmanager/pkg/appcontext"
+	"github.com/maadiii/taskmanager/pkg/errors"
 )
 
 type Entity struct {
@@ -23,7 +24,7 @@ type Entity struct {
 func Create(ctx *appcontext.Context, title, description string) (*Entity, error) {
 	// Creation business rule
 	if !slices.Contains(ctx.Identity.Permissions, "create") {
-		return nil, fmt.Errorf("forbidden")
+		return nil, errors.Forbidden()
 	}
 
 	return &Entity{
@@ -40,7 +41,7 @@ func Create(ctx *appcontext.Context, title, description string) (*Entity, error)
 
 func (e *Entity) Update(ctx *appcontext.Context, title, description, status, priority string) error {
 	if !slices.Contains(ctx.Identity.Permissions, "update") {
-		return fmt.Errorf("forbidden")
+		return errors.Forbidden()
 	}
 
 	if title != "" {
@@ -71,7 +72,7 @@ func (e *Entity) Update(ctx *appcontext.Context, title, description, status, pri
 
 func (e *Entity) Delete(ctx *appcontext.Context) error {
 	if !slices.Contains(ctx.Identity.Permissions, "delete") {
-		return fmt.Errorf("forbidden")
+		return errors.Forbidden()
 	}
 
 	return nil

@@ -71,10 +71,8 @@ func handle[
 		var body IN
 
 		if err := bind(c, &body); err != nil {
-			// NOTE: use a good error handler
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-				"error": err.Error(),
-			})
+			_ = c.Error(errors.BadRequest(err))
+			c.Abort()
 
 			return
 		}

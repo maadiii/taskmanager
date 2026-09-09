@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -10,19 +9,20 @@ import (
 	"github.com/maadiii/taskmanager/config"
 	"github.com/maadiii/taskmanager/internal/app/port"
 	"github.com/maadiii/taskmanager/internal/infra/persistence/postgres/task"
+	"github.com/maadiii/taskmanager/pkg/errors"
 	"go.uber.org/fx"
 )
 
 func NewPostgresPool(lc fx.Lifecycle, ctx context.Context, cfg *config.Config) (*pgxpool.Pool, error) {
 	pool, err := pgxpool.New(context.Background(), cfg.PgDb.DSN)
 	if err != nil {
-		return nil, fmt.Errorf("failed on pg pool creation: %w", err)
+		return nil, errors.Wrap(err)
 	}
 
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			if err := pool.Ping(ctx); err != nil {
-				return fmt.Errorf("failed on pg pool ping: %w", err)
+				return errors.Wrap(err)
 			}
 
 			return nil

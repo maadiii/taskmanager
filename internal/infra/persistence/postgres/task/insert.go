@@ -27,7 +27,7 @@ func (r *repo) CreateNew(ctx context.Context, entity *task.Entity) error {
 		return errors.UniqueViolation(err, "task", "title")
 	}
 
-	return err
+	return errors.Wrap(err)
 }
 
 const InsertQuery = `
