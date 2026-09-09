@@ -6,7 +6,13 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/mock"
+	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 )
+
+func testTracer() trace.Tracer {
+	return noop.NewTracerProvider().Tracer("task-repository-test")
+}
 
 // MockExecer is a testify mock implementation of port.Execer used for unit tests.
 type MockExecer struct {

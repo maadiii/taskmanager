@@ -7,6 +7,9 @@ import (
 )
 
 func (r *repo) DeleteByIdAndOwner(ctx context.Context, id, ownerId string) error {
+	ctx, span := r.tracer.Start(ctx, "repo.DeleteByIdAndOwner")
+	defer span.End()
+
 	_, err := r.client.Exec(ctx, DeleteByIdAndOwnerQuery, id, ownerId)
 	if nil == err {
 		return nil

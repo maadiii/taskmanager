@@ -35,7 +35,7 @@ func TestList_WithoutStatus(t *testing.T) {
 		[]any{userId, 10},
 	).Return(rows, nil).Once()
 
-	result, err := NewRepository(execer).List(context.Background(), "", userId, 10, "")
+	result, err := NewRepository(execer, testTracer()).List(context.Background(), "", userId, 10, "")
 
 	if assert.NoError(t, err) {
 		assert.Equal(t, []domaintask.Entity{{
@@ -63,7 +63,7 @@ func TestList_WithStatusAndCursor(t *testing.T) {
 		[]any{"DONE", "user-1", "task-10", 2},
 	).Return(rows, nil).Once()
 
-	result, err := NewRepository(execer).List(context.Background(), "DONE", "user-1", 2, "task-10")
+	result, err := NewRepository(execer, testTracer()).List(context.Background(), "DONE", "user-1", 2, "task-10")
 
 	assert.NoError(t, err)
 	assert.Empty(t, result)
@@ -78,7 +78,7 @@ func TestList_QueryError(t *testing.T) {
 	execer := new(MockExecer)
 	execer.On("Query", mock.Anything, mock.Anything, mock.Anything).Return(nil, queryErr).Once()
 
-	result, err := NewRepository(execer).List(context.Background(), "", "user-1", 10, "")
+	result, err := NewRepository(execer, testTracer()).List(context.Background(), "", "user-1", 10, "")
 
 	assert.Nil(t, result)
 	assert.ErrorIs(t, err, queryErr)
@@ -98,7 +98,7 @@ func TestList_ScanError(t *testing.T) {
 	execer := new(MockExecer)
 	execer.On("Query", mock.Anything, mock.Anything, mock.Anything).Return(rows, nil).Once()
 
-	result, err := NewRepository(execer).List(context.Background(), "", "user-1", 10, "")
+	result, err := NewRepository(execer, testTracer()).List(context.Background(), "", "user-1", 10, "")
 
 	assert.Nil(t, result)
 	assert.ErrorIs(t, err, scanErr)

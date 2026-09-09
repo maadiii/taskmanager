@@ -9,6 +9,8 @@ import (
 	"github.com/maadiii/taskmanager/internal/app/port"
 	domaintask "github.com/maadiii/taskmanager/internal/domain/task"
 	"github.com/stretchr/testify/mock"
+	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 type MockTaskRepo struct {
@@ -87,7 +89,11 @@ type MockTaskCache struct {
 }
 
 func newTestService(repo port.TaskRepo, uow uow.UoW[port.RepoFactory], cache port.TaskCache) *service {
-	return &service{repo: repo, uow: uow, cache: cache}
+	return &service{repo: repo, uow: uow, cache: cache, tracer: testTracer()}
+}
+
+func testTracer() trace.Tracer {
+	return noop.NewTracerProvider().Tracer("task-service-test")
 }
 
 func (m *MockTaskCache) Get(ctx context.Context, userID, taskID string) (*dto.GetByIdRs, error) {

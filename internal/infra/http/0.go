@@ -12,6 +12,8 @@ import (
 	"github.com/maadiii/taskmanager/internal/app/port"
 	"github.com/maadiii/taskmanager/pkg/appcontext"
 	"github.com/maadiii/taskmanager/pkg/errors"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.uber.org/fx"
 )
 
@@ -29,12 +31,14 @@ type Param struct {
 
 func NewApiGroupRouter(lc fx.Lifecycle, cfg *config.Config) *gin.RouterGroup {
 	g := gin.Default()
+	g.Use(otelgin.Middleware(cfg.Server.Name))
 	g.Use(errors.HandleHttpError)
 	rg := g.Group("/api")
 
+	wrapped := otelhttp.NewHandler(g.Handler(), "tasks crud")
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.Server.Port),
-		Handler: g.Handler(),
+		Handler: wrapped,
 	}
 
 	lc.Append(fx.Hook{

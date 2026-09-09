@@ -9,6 +9,9 @@ import (
 )
 
 func (r *repo) GetTaskByIdAndOwner(ctx context.Context, id, ownerId string) (*task.Entity, error) {
+	ctx, span := r.tracer.Start(ctx, "repo.GetTaskByIdAndOwner")
+	defer span.End()
+
 	row := r.client.QueryRow(ctx, GetByIdAndOwnerQuery, id, ownerId)
 
 	entity := new(task.Entity)

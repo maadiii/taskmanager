@@ -10,6 +10,9 @@ import (
 )
 
 func (s *service) Create(ctx *appcontext.Context, rq *dto.CreateTaskRq) (*dto.CreateTaskRs, error) {
+	c, span := s.tracer.Start(ctx, "service.Create")
+	defer span.End()
+
 	// Force domain service(business) rules
 	task, err := task.Create(ctx, rq.Title, rq.Description)
 	if err != nil {
@@ -17,14 +20,14 @@ func (s *service) Create(ctx *appcontext.Context, rq *dto.CreateTaskRq) (*dto.Cr
 	}
 
 	// Force application service rules
-	if err := s.create(ctx, task); err != nil {
+	if err := s.create(c, task); err != nil {
 		return nil, err
 	}
 
 	return s.createTaskRs(task)
 }
 
-func (s *service) create(ctx *appcontext.Context, task *task.Entity) error {
+func (s *service) create(ctx context.Context, task *task.Entity) error {
 	return s.uow.Do(ctx, func(ctx context.Context, repo port.RepoFactory) error {
 		if err := repo.Tasks().CreateNew(ctx, task); err != nil {
 			return err

@@ -6,7 +6,10 @@ import (
 )
 
 func (s *service) Update(ctx *appcontext.Context, rq *dto.UpdateTaskRq) (*dto.UpdateTaskRs, error) {
-	entity, err := s.repo.GetTaskByIdAndOwner(ctx, rq.ID, ctx.Identity.UserID)
+	c, span := s.tracer.Start(ctx, "service.Update")
+	defer span.End()
+
+	entity, err := s.repo.GetTaskByIdAndOwner(c, rq.ID, ctx.Identity.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -15,7 +18,7 @@ func (s *service) Update(ctx *appcontext.Context, rq *dto.UpdateTaskRq) (*dto.Up
 		return nil, err
 	}
 
-	if err := s.repo.UpdateByIdAndOwner(ctx, entity); err != nil {
+	if err := s.repo.UpdateByIdAndOwner(c, entity); err != nil {
 		return nil, err
 	}
 

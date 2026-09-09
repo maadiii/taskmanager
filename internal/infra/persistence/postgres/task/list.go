@@ -8,6 +8,9 @@ import (
 )
 
 func (r *repo) List(ctx context.Context, status, userId string, limit int, lastId string) ([]task.Entity, error) {
+	ctx, span := r.tracer.Start(ctx, "repo.List")
+	defer span.End()
+
 	p := new(utils.Pagination).
 		Select("tasks", "id", "title", "description", "status").
 		Limit(limit).

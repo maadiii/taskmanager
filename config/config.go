@@ -29,11 +29,15 @@ func (r *Redis) init() *Redis {
 }
 
 type Server struct {
-	Port int
+	Port         int
+	Name         string
+	OtlpEndpoint string
 }
 
 func (s *Server) init() *Server {
 	s.Port = getEnvInt("PORT")
+	s.Name = getEnvString("NAME")
+	s.OtlpEndpoint = getEnvString("OTLP_ENDPOINT")
 
 	return s
 }

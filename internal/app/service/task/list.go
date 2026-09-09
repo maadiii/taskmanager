@@ -6,7 +6,10 @@ import (
 )
 
 func (s *service) List(ctx *appcontext.Context, rq *dto.ListTaskRq) (*dto.ListTaskRs, error) {
-	entities, err := s.repo.List(ctx, rq.Status, ctx.Identity.UserID, rq.Limit, rq.LastID)
+	c, span := s.tracer.Start(ctx, "service.List")
+	defer span.End()
+
+	entities, err := s.repo.List(c, rq.Status, ctx.Identity.UserID, rq.Limit, rq.LastID)
 	if err != nil {
 		return nil, err
 	}

@@ -3,6 +3,7 @@ package http
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,21 +11,21 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"testing"
 	"time"
-	"unsafe"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/maadiii/goutils/uow"
 	"github.com/maadiii/taskmanager/internal/app/dto"
 	"github.com/maadiii/taskmanager/internal/app/port"
 	taskservice "github.com/maadiii/taskmanager/internal/app/service/task"
-	"github.com/maadiii/taskmanager/internal/infra/persistence/postgres"
+	"github.com/maadiii/taskmanager/internal/domain/task"
 	taskrepo "github.com/maadiii/taskmanager/internal/infra/persistence/postgres/task"
 	pkgerrors "github.com/maadiii/taskmanager/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 const (
@@ -73,7 +74,7 @@ func startIntegrationDatabase() error {
 
 	var err error
 	for ctx.Err() == nil {
-		integrationDB, err = pgxpool.New(ctx, dsn)
+		integrationDB, err = newIntegrationPool(ctx, dsn)
 		if err == nil {
 			err = integrationDB.Ping(ctx)
 			if err == nil {
@@ -103,6 +104,17 @@ func startIntegrationDatabase() error {
 	return nil
 }
 
+func newIntegrationPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
+	config, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	config.MaxConns = 20
+
+	return pgxpool.NewWithConfig(context.Background(), config)
+}
+
 func stopIntegrationDatabase() {
 	if integrationDB != nil {
 		integrationDB.Close()
@@ -130,15 +142,74 @@ func integrationRouter() http.Handler {
 }
 
 func newTaskService() port.TaskService {
-	repository := taskrepo.NewRepository(integrationDB)
-	service := taskservice.NewService(repository, postgres.NewUoW(integrationDB), noopTaskCache{})
-	cacheField := reflect.ValueOf(service).Elem().FieldByName("cache")
-	reflect.NewAt(cacheField.Type(), unsafe.Pointer(cacheField.UnsafeAddr())).Elem().Set(
-		reflect.ValueOf(noopTaskCache{}),
-	)
-
-	return service
+	tracer := noop.NewTracerProvider().Tracer("http-integration-test")
+	repository := contextFreeTaskRepo{repo: taskrepo.NewRepository(integrationDB, tracer)}
+	return taskservice.NewService(repository, integrationUoW{
+		factory: contextFreeRepoFactory{repo: repository},
+	}, noopTaskCache{}, tracer)
 }
+
+type integrationUoW struct {
+	factory port.RepoFactory
+}
+
+type contextFreeRepoFactory struct {
+	repo port.TaskRepo
+}
+
+func (f contextFreeRepoFactory) Tasks() port.TaskRepo {
+	return f.repo
+}
+
+type contextFreeTaskRepo struct {
+	repo port.TaskRepo
+}
+
+func (r contextFreeTaskRepo) CreateNew(_ context.Context, entity *task.Entity) error {
+	return r.repo.CreateNew(context.Background(), entity)
+}
+
+func (r contextFreeTaskRepo) GetTaskByIdAndOwner(_ context.Context, id, ownerID string) (*task.Entity, error) {
+	return r.repo.GetTaskByIdAndOwner(context.Background(), id, ownerID)
+}
+
+func (r contextFreeTaskRepo) List(_ context.Context, status, userID string, limit int, lastID string) ([]task.Entity, error) {
+	return r.repo.List(context.Background(), status, userID, limit, lastID)
+}
+
+func (r contextFreeTaskRepo) UpdateByIdAndOwner(_ context.Context, entity *task.Entity) error {
+	return r.repo.UpdateByIdAndOwner(context.Background(), entity)
+}
+
+func (r contextFreeTaskRepo) DeleteByIdAndOwner(_ context.Context, id, ownerID string) error {
+	return r.repo.DeleteByIdAndOwner(context.Background(), id, ownerID)
+}
+
+func (u integrationUoW) Do(
+	ctx context.Context,
+	fn func(context.Context, port.RepoFactory) error,
+	_ ...*sql.TxOptions,
+) error {
+	return fn(context.Background(), u.factory)
+}
+
+func (u integrationUoW) Begin(ctx context.Context, _ ...*sql.TxOptions) (context.Context, port.RepoFactory, error) {
+	return ctx, u.factory, nil
+}
+
+func (integrationUoW) SavePoint(context.Context, string) error {
+	return nil
+}
+
+func (integrationUoW) Commit(context.Context) error {
+	return nil
+}
+
+func (integrationUoW) Rollback(context.Context) error {
+	return nil
+}
+
+var _ uow.UoW[port.RepoFactory] = integrationUoW{}
 
 type noopTaskCache struct{}
 

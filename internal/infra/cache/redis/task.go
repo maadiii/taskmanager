@@ -10,20 +10,27 @@ import (
 	"github.com/maadiii/taskmanager/internal/app/dto"
 	apperrors "github.com/maadiii/taskmanager/pkg/errors"
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const taskTTL = 5 * time.Minute
 
+const cacheOperationTimeout = 500 * time.Millisecond
+
 type TaskCache struct {
 	client *redis.Client
+	tracer trace.Tracer
 }
 
-func NewTaskCache(client *redis.Client) *TaskCache {
-	return &TaskCache{client: client}
+func NewTaskCache(client *redis.Client, tracer trace.Tracer) *TaskCache {
+	return &TaskCache{client: client, tracer: tracer}
 }
 
 func (c *TaskCache) Get(ctx context.Context, userID, taskID string) (*dto.GetByIdRs, error) {
-	value, err := c.client.Get(ctx, taskKey(userID, taskID)).Result()
+	operationCtx, cancel := context.WithTimeout(ctx, cacheOperationTimeout)
+	defer cancel()
+
+	value, err := c.client.Get(operationCtx, taskKey(userID, taskID)).Result()
 	if errors.Is(err, redis.Nil) {
 		return nil, nil
 	}
@@ -45,11 +52,17 @@ func (c *TaskCache) Set(ctx context.Context, userID, taskID string, task *dto.Ge
 		return apperrors.Cache(err, "encode task")
 	}
 
-	return c.client.Set(ctx, taskKey(userID, taskID), value, taskTTL).Err()
+	operationCtx, cancel := context.WithTimeout(ctx, cacheOperationTimeout)
+	defer cancel()
+
+	return c.client.Set(operationCtx, taskKey(userID, taskID), value, taskTTL).Err()
 }
 
 func (c *TaskCache) Delete(ctx context.Context, userID, taskID string) error {
-	return c.client.Del(ctx, taskKey(userID, taskID)).Err()
+	operationCtx, cancel := context.WithTimeout(ctx, cacheOperationTimeout)
+	defer cancel()
+
+	return c.client.Del(operationCtx, taskKey(userID, taskID)).Err()
 }
 
 func taskKey(userID, taskID string) string {

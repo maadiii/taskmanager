@@ -17,7 +17,7 @@ import (
 
 func TestCreateNew_Success(t *testing.T) {
 	m := &MockExecer{}
-	r := NewRepository(m)
+	r := NewRepository(m, testTracer())
 
 	ent := &domain.Entity{
 		ID:          uuid.NewV7().String(),
@@ -52,7 +52,7 @@ func TestCreateNew_Success(t *testing.T) {
 
 func TestCreateNew_UniqueViolation(t *testing.T) {
 	m := &MockExecer{}
-	r := NewRepository(m)
+	r := NewRepository(m, testTracer())
 
 	ent := &domain.Entity{
 		ID:          uuid.NewV7().String(),

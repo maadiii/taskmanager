@@ -10,6 +10,7 @@ import (
 	"github.com/maadiii/taskmanager/internal/app/port"
 	"github.com/maadiii/taskmanager/internal/infra/persistence/postgres/task"
 	"github.com/maadiii/taskmanager/pkg/errors"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/fx"
 )
 
@@ -39,20 +40,22 @@ func NewPostgresPool(lc fx.Lifecycle, ctx context.Context, cfg *config.Config) (
 
 type RepoFactory struct {
 	client port.Execer
+	tracer trace.Tracer
 }
 
-func NewUoW(pool port.Execer) uow.UoW[port.RepoFactory] {
+func NewUoW(pool port.Execer, tracer trace.Tracer) uow.UoW[port.RepoFactory] {
 	return uow.NewPgx(pool, func(tx pgx.Tx) port.RepoFactory {
-		return NewRepoFactory(pool)
+		return NewRepoFactory(pool, tracer)
 	}).UoW()
 }
 
-func NewRepoFactory(client port.Execer) *RepoFactory {
+func NewRepoFactory(client port.Execer, tracer trace.Tracer) *RepoFactory {
 	return &RepoFactory{
 		client: client,
+		tracer: tracer,
 	}
 }
 
 func (f *RepoFactory) Tasks() port.TaskRepo {
-	return task.NewRepository(f.client)
+	return task.NewRepository(f.client, f.tracer)
 }

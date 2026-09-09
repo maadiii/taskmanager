@@ -7,11 +7,14 @@ import (
 )
 
 func (s *service) GetByID(ctx *appcontext.Context, rq *dto.GetByIdRq) (*dto.GetByIdRs, error) {
-	if cached := s.getCachedTask(ctx, ctx.Identity.UserID, rq.ID); cached != nil {
+	c, span := s.tracer.Start(ctx, "service.GetByID")
+	defer span.End()
+
+	if cached := s.getCachedTask(c, ctx.Identity.UserID, rq.ID); cached != nil {
 		return cached, nil
 	}
 
-	task, err := s.repo.GetTaskByIdAndOwner(ctx, rq.ID, ctx.Identity.UserID)
+	task, err := s.repo.GetTaskByIdAndOwner(c, rq.ID, ctx.Identity.UserID)
 	if err != nil {
 		return nil, err
 	}

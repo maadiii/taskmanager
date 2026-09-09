@@ -8,6 +8,9 @@ import (
 )
 
 func (r *repo) CreateNew(ctx context.Context, entity *task.Entity) error {
+	ctx, span := r.tracer.Start(ctx, "repo.CreateNew")
+	defer span.End()
+
 	_, err := r.client.Exec(
 		ctx, InsertQuery,
 		entity.ID,

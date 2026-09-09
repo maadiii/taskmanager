@@ -17,7 +17,7 @@ func TestGetTaskByIdAndOwner_Success(t *testing.T) {
 	t.Parallel()
 
 	m := &MockExecer{}
-	r := NewRepository(m)
+	r := NewRepository(m, testTracer())
 
 	id := uuid.NewV7().String()
 	ownerID := uuid.NewV7().String()
@@ -78,7 +78,7 @@ func TestGetTaskByIdAndOwner_NotFound(t *testing.T) {
 	t.Parallel()
 
 	m := &MockExecer{}
-	r := NewRepository(m)
+	r := NewRepository(m, testTracer())
 
 	id := uuid.NewV7().String()
 	ownerID := uuid.NewV7().String()

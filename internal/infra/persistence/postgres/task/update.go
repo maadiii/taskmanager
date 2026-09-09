@@ -8,6 +8,9 @@ import (
 )
 
 func (r *repo) UpdateByIdAndOwner(ctx context.Context, entity *domain.Entity) error {
+	ctx, span := r.tracer.Start(ctx, "repo.UpdateByIdAndOwner")
+	defer span.End()
+
 	_, err := r.client.Exec(
 		ctx,
 		UpdateByIdAndOwnerQuery,

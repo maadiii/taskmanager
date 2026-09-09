@@ -6,7 +6,10 @@ import (
 )
 
 func (s *service) Delete(ctx *appcontext.Context, rq *dto.DeleteTaskRq) (*dto.DeleteTaskRs, error) {
-	entity, err := s.repo.GetTaskByIdAndOwner(ctx, rq.ID, ctx.Identity.UserID)
+	c, span := s.tracer.Start(ctx, "service.Delete")
+	defer span.End()
+
+	entity, err := s.repo.GetTaskByIdAndOwner(c, rq.ID, ctx.Identity.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -15,7 +18,7 @@ func (s *service) Delete(ctx *appcontext.Context, rq *dto.DeleteTaskRq) (*dto.De
 		return nil, err
 	}
 
-	if err := s.repo.DeleteByIdAndOwner(ctx, entity.ID, entity.UserID); err != nil {
+	if err := s.repo.DeleteByIdAndOwner(c, entity.ID, entity.UserID); err != nil {
 		return nil, err
 	}
 

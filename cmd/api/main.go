@@ -11,16 +11,20 @@ import (
 	"github.com/maadiii/taskmanager/internal/infra/http"
 	"github.com/maadiii/taskmanager/internal/infra/persistence/postgres"
 	taskPg "github.com/maadiii/taskmanager/internal/infra/persistence/postgres/task"
+	"github.com/maadiii/taskmanager/pkg/observ"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/fx"
 )
 
 func main() {
 	fx.New(
-		// Gracefully shutting down
 		fx.StopTimeout(10*time.Second), //nolint:mnd
 
 		fx.Provide(context.Background),
-		provieConfig(),
+		fx.Provide(config.NewConfig),
+		provideTracing(),
+		fx.Invoke(observ.InitTrace),
 		providePgDb(),
 		provideCache(),
 		provideRepos(),
@@ -30,23 +34,41 @@ func main() {
 	).Run()
 }
 
-func provieConfig() fx.Option {
+func provideTracing() fx.Option {
 	return fx.Provide(
-		config.NewConfig,
+		observ.NewExporter,
+		observ.NewResource,
+		observ.NewTraceProvider,
+		fx.Annotate(
+			func() trace.Tracer {
+				return otel.Tracer("service")
+			},
+			fx.ResultTags(`name:"service"`),
+		),
+		fx.Annotate(
+			func() trace.Tracer {
+				return otel.Tracer("repository")
+			},
+			fx.ResultTags(`name:"repository"`),
+		),
+		fx.Annotate(
+			func() trace.Tracer {
+				return otel.Tracer("cache")
+			},
+			fx.ResultTags(`name:"cache"`),
+		),
 	)
 }
 
 func providePgDb() fx.Option {
 	return fx.Provide(
-		// Inject postgres pgx pool as port.Execer
 		fx.Annotate(
 			postgres.NewPostgresPool,
 			fx.As(new(port.Execer)),
 		),
-
-		// Inject *postgres.RepoFactory as port.RepoFactory
 		fx.Annotate(
 			postgres.NewRepoFactory,
+			fx.ParamTags(``, `name:"repository"`),
 			fx.As(new(port.RepoFactory)),
 		),
 	)
@@ -54,10 +76,13 @@ func providePgDb() fx.Option {
 
 func provideRepos() fx.Option {
 	return fx.Provide(
-		postgres.NewUoW,
-
+		fx.Annotate(
+			postgres.NewUoW,
+			fx.ParamTags(``, `name:"repository"`),
+		),
 		fx.Annotate(
 			taskPg.NewRepository,
+			fx.ParamTags(``, `name:"repository"`),
 			fx.As(new(port.TaskRepo)),
 		),
 	)
@@ -66,15 +91,19 @@ func provideRepos() fx.Option {
 func provideCache() fx.Option {
 	return fx.Provide(
 		taskCache.NewClient,
-		taskCache.NewTaskCache,
+		fx.Annotate(
+			taskCache.NewTaskCache,
+			fx.ParamTags(``, `name:"cache"`),
+			fx.As(new(port.TaskCache)),
+		),
 	)
 }
 
 func provideDomain() fx.Option {
 	return fx.Provide(
-		// Inject task.Service as port.TaskService
 		fx.Annotate(
 			task.NewService,
+			fx.ParamTags(``, ``, ``, `name:"service"`),
 			fx.As(new(port.TaskService)),
 		),
 	)
