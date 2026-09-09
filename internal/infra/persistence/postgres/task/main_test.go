@@ -56,3 +56,52 @@ func (m *MockRow) Scan(dest ...any) error {
 	args := m.Called(dest...)
 	return args.Error(0)
 }
+
+type mockRows struct {
+	mock.Mock
+	next    []bool
+	nextIdx int
+}
+
+func (r *mockRows) Close() {
+	r.Called()
+}
+
+func (r *mockRows) Err() error {
+	args := r.Called()
+	return args.Error(0)
+}
+
+func (r *mockRows) CommandTag() pgconn.CommandTag {
+	return pgconn.CommandTag{}
+}
+
+func (r *mockRows) FieldDescriptions() []pgconn.FieldDescription {
+	return nil
+}
+
+func (r *mockRows) Next() bool {
+	if r.nextIdx >= len(r.next) {
+		return false
+	}
+	value := r.next[r.nextIdx]
+	r.nextIdx++
+	return value
+}
+
+func (r *mockRows) Scan(dest ...any) error {
+	args := r.Called(dest...)
+	return args.Error(0)
+}
+
+func (r *mockRows) Values() ([]any, error) {
+	return nil, nil
+}
+
+func (r *mockRows) RawValues() [][]byte {
+	return nil
+}
+
+func (r *mockRows) Conn() *pgx.Conn {
+	return nil
+}
