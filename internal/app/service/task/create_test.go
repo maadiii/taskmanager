@@ -44,7 +44,8 @@ func TestServiceCreate_Success(t *testing.T) {
 			entity.Priority == domaintask.PriorityMedium
 	})).Return(nil).Once()
 
-	svc := NewService(taskRepo, uowMock)
+	cache := &MockTaskCache{}
+	svc := newTestService(taskRepo, uowMock, cache)
 	rq := &dto.CreateTaskRq{Title: "Fix parser", Description: "Fix parsing bug in uploader"}
 
 	res, err := svc.Create(ctx, rq)
@@ -73,7 +74,8 @@ func TestServiceCreate_ForbiddenByDomainRule(t *testing.T) {
 	}
 
 	uowMock := &MockUoW{}
-	svc := NewService(&MockTaskRepo{}, uowMock)
+	cache := &MockTaskCache{}
+	svc := newTestService(&MockTaskRepo{}, uowMock, cache)
 
 	res, err := svc.Create(ctx, &dto.CreateTaskRq{Title: "Bad title", Description: "desc"})
 	assert.Nil(t, res)
@@ -104,7 +106,8 @@ func TestServiceCreate_RepoCreateFailure(t *testing.T) {
 		return entity != nil && entity.UserID == "user-789"
 	})).Return(errors.New("db failed")).Once()
 
-	svc := NewService(taskRepo, uowMock)
+	cache := &MockTaskCache{}
+	svc := newTestService(taskRepo, uowMock, cache)
 	res, err := svc.Create(ctx, &dto.CreateTaskRq{Title: "Retry me", Description: "test desc"})
 	assert.Nil(t, res)
 	assert.EqualError(t, err, "db failed")
@@ -145,7 +148,8 @@ func TestServiceCreate_UsesUUIDv7ForEntityID(t *testing.T) {
 		return err == nil
 	})).Return(nil).Once()
 
-	svc := NewService(taskRepo, uowMock)
+	cache := &MockTaskCache{}
+	svc := newTestService(taskRepo, uowMock, cache)
 	res, err := svc.Create(ctx, &dto.CreateTaskRq{Title: "uuid check", Description: "verify id format"})
 	assert.NoError(t, err)
 	assert.NotEmpty(t, res.ID)

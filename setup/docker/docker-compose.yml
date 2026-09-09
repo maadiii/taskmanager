@@ -15,6 +15,16 @@ services:
       timeout: 3s
       retries: 30
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
   migrate:
     image: migrate/migrate:v4.18.3
     depends_on:
@@ -32,11 +42,14 @@ services:
       context: ../..
       dockerfile: setup/docker/Dockerfile
     depends_on:
+      redis:
+        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     environment:
       PORT: 8080
       PG_DSN: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-taskmanager}?sslmode=disable
+      REDIS_ADDR: redis:6379
     ports:
       - "${API_PORT:-8080}:8080"
 

@@ -31,8 +31,8 @@ func TestList_WithoutStatus(t *testing.T) {
 	execer.On(
 		"Query",
 		mock.Anything,
-		"SELECT  id, title, description, status FROM tasks WHERE user_id = $1 ORDER BY id $2 LIMIT $3",
-		[]any{userId, "DESC", 10},
+		"SELECT  id, title, description, status FROM tasks WHERE user_id = $1 ORDER BY id DESC LIMIT $2",
+		[]any{userId, 10},
 	).Return(rows, nil).Once()
 
 	result, err := NewRepository(execer).List(context.Background(), "", userId, 10, "")
@@ -59,8 +59,8 @@ func TestList_WithStatusAndCursor(t *testing.T) {
 	execer.On(
 		"Query",
 		mock.Anything,
-		"SELECT  id, title, description, status FROM tasks WHERE status = $1 AND user_id = $2 AND id > $3 ORDER BY id $4 LIMIT $5",
-		[]any{"DONE", "user-1", "task-10", "DESC", 2},
+		"SELECT  id, title, description, status FROM tasks WHERE status = $1 AND user_id = $2 AND id > $3 ORDER BY id DESC LIMIT $4",
+		[]any{"DONE", "user-1", "task-10", 2},
 	).Return(rows, nil).Once()
 
 	result, err := NewRepository(execer).List(context.Background(), "DONE", "user-1", 2, "task-10")

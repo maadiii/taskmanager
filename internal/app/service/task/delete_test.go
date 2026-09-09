@@ -3,7 +3,6 @@ package task
 import (
 	"context"
 	"testing"
-
 	"uuid"
 
 	"github.com/maadiii/taskmanager/internal/app/dto"
@@ -27,10 +26,12 @@ func TestServiceDelete_Success(t *testing.T) {
 	}
 
 	repo := &MockTaskRepo{}
-	svc := NewService(repo, nil)
+	cache := &MockTaskCache{}
+	svc := newTestService(repo, nil, cache)
 	entity := &domaintask.Entity{ID: id, UserID: userID}
 	repo.On("GetTaskByIdAndOwner", mock.Anything, id, userID).Return(entity, nil).Once()
 	repo.On("DeleteByIdAndOwner", mock.Anything, id, userID).Return(nil).Once()
+	cache.On("Delete", mock.Anything, userID, id).Return(nil).Once()
 
 	res, err := svc.Delete(ctx, &dto.DeleteTaskRq{ID: id})
 	if assert.NoError(t, err) {
@@ -55,7 +56,8 @@ func TestServiceDelete_Forbidden(t *testing.T) {
 	}
 
 	repo := &MockTaskRepo{}
-	svc := NewService(repo, nil)
+	cache := &MockTaskCache{}
+	svc := newTestService(repo, nil, cache)
 	repo.On("GetTaskByIdAndOwner", mock.Anything, id, userID).
 		Return(&domaintask.Entity{ID: id, UserID: userID}, nil).Once()
 
@@ -63,4 +65,29 @@ func TestServiceDelete_Forbidden(t *testing.T) {
 	assert.Nil(t, res)
 	assert.EqualError(t, err, "forbidden")
 	repo.AssertExpectations(t)
+}
+
+func TestServiceDelete_InvalidatesCacheAfterPersistence(t *testing.T) {
+	t.Parallel()
+
+	id := uuid.NewV7().String()
+	userID := uuid.NewV7().String()
+	ctx := &appcontext.Context{
+		Context:  context.Background(),
+		Identity: appcontext.Identity{UserID: userID, Permissions: []string{"delete"}},
+	}
+	repo := &MockTaskRepo{}
+	cache := &MockTaskCache{}
+	svc := newTestService(repo, nil, cache)
+	entity := &domaintask.Entity{ID: id, UserID: userID}
+
+	repo.On("GetTaskByIdAndOwner", mock.Anything, id, userID).Return(entity, nil).Once()
+	repo.On("DeleteByIdAndOwner", mock.Anything, id, userID).Return(nil).Once()
+	cache.On("Delete", mock.Anything, userID, id).Return(nil).Once()
+
+	res, err := svc.Delete(ctx, &dto.DeleteTaskRq{ID: id})
+
+	assert.NoError(t, err)
+	assert.True(t, res.Deleted)
+	cache.AssertExpectations(t)
 }

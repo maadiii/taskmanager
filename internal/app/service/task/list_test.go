@@ -36,7 +36,8 @@ func TestServiceList_Success(t *testing.T) {
 		CreatedAt: createdAt,
 	}}, nil).Once()
 
-	result, err := NewService(repo, nil).List(ctx, request)
+	cache := &MockTaskCache{}
+	result, err := newTestService(repo, nil, cache).List(ctx, request)
 
 	if assert.NoError(t, err) {
 		assert.Equal(t, &dto.ListTaskRs{Tasks: []dto.GetByIdRs{{
@@ -58,7 +59,8 @@ func TestServiceList_RepoError(t *testing.T) {
 	repo := &MockTaskRepo{}
 	repo.On("List", mock.Anything, "", userID, 20, "").Return(nil, repoErr).Once()
 
-	result, err := NewService(repo, nil).List(&appcontext.Context{
+	cache := &MockTaskCache{}
+	result, err := newTestService(repo, nil, cache).List(&appcontext.Context{
 		Context:  context.Background(),
 		Identity: appcontext.Identity{UserID: userID},
 	}, &dto.ListTaskRq{Limit: 20})

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/maadiii/goutils/uow"
+	"github.com/maadiii/taskmanager/internal/app/dto"
 	"github.com/maadiii/taskmanager/internal/app/port"
 	domaintask "github.com/maadiii/taskmanager/internal/domain/task"
 	"github.com/stretchr/testify/mock"
@@ -79,6 +80,31 @@ func (m *MockUoW) Commit(ctx context.Context) error {
 
 func (m *MockUoW) Rollback(ctx context.Context) error {
 	return nil
+}
+
+type MockTaskCache struct {
+	mock.Mock
+}
+
+func newTestService(repo port.TaskRepo, uow uow.UoW[port.RepoFactory], cache port.TaskCache) *service {
+	return &service{repo: repo, uow: uow, cache: cache}
+}
+
+func (m *MockTaskCache) Get(ctx context.Context, userID, taskID string) (*dto.GetByIdRs, error) {
+	args := m.Called(ctx, userID, taskID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+
+	return args.Get(0).(*dto.GetByIdRs), args.Error(1)
+}
+
+func (m *MockTaskCache) Set(ctx context.Context, userID, taskID string, task *dto.GetByIdRs) error {
+	return m.Called(ctx, userID, taskID, task).Error(0)
+}
+
+func (m *MockTaskCache) Delete(ctx context.Context, userID, taskID string) error {
+	return m.Called(ctx, userID, taskID).Error(0)
 }
 
 var _ uow.UoW[port.RepoFactory] = (*MockUoW)(nil)

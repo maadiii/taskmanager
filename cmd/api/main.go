@@ -7,6 +7,7 @@ import (
 	"github.com/maadiii/taskmanager/config"
 	"github.com/maadiii/taskmanager/internal/app/port"
 	"github.com/maadiii/taskmanager/internal/app/service/task"
+	taskCache "github.com/maadiii/taskmanager/internal/infra/cache/redis"
 	"github.com/maadiii/taskmanager/internal/infra/http"
 	"github.com/maadiii/taskmanager/internal/infra/persistence/postgres"
 	taskPg "github.com/maadiii/taskmanager/internal/infra/persistence/postgres/task"
@@ -21,6 +22,7 @@ func main() {
 		fx.Provide(context.Background),
 		provieConfig(),
 		providePgDb(),
+		provideCache(),
 		provideRepos(),
 		provideDomain(),
 		provideHttp(),
@@ -58,6 +60,13 @@ func provideRepos() fx.Option {
 			taskPg.NewRepository,
 			fx.As(new(port.TaskRepo)),
 		),
+	)
+}
+
+func provideCache() fx.Option {
+	return fx.Provide(
+		taskCache.NewClient,
+		taskCache.NewTaskCache,
 	)
 }
 

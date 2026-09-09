@@ -4,11 +4,10 @@ import (
 	"context"
 	"testing"
 	"time"
-
 	"uuid"
 
-	domaintask "github.com/maadiii/taskmanager/internal/domain/task"
 	"github.com/maadiii/taskmanager/internal/app/dto"
+	domaintask "github.com/maadiii/taskmanager/internal/domain/task"
 	"github.com/maadiii/taskmanager/pkg/appcontext"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -40,7 +39,8 @@ func TestServiceUpdate_Success(t *testing.T) {
 	baselineUpdatedAt := starter.UpdatedAt
 
 	repo := &MockTaskRepo{}
-	svc := NewService(repo, nil)
+	cache := &MockTaskCache{}
+	svc := newTestService(repo, nil, cache)
 
 	repo.On("GetTaskByIdAndOwner", mock.Anything, id, userID).Return(starter, nil).Once()
 	repo.On("UpdateByIdAndOwner", mock.Anything, mock.MatchedBy(func(entity *domaintask.Entity) bool {
@@ -53,6 +53,7 @@ func TestServiceUpdate_Success(t *testing.T) {
 			entity.Priority == domaintask.PriorityHigh &&
 			entity.UpdatedAt.After(baselineUpdatedAt)
 	})).Return(nil).Once()
+	cache.On("Delete", mock.Anything, userID, id).Return(nil).Once()
 
 	res, err := svc.Update(ctx, &dto.UpdateTaskRq{
 		ID:          id,
@@ -98,7 +99,8 @@ func TestServiceUpdate_InvalidStatus(t *testing.T) {
 	}
 
 	repo := &MockTaskRepo{}
-	svc := NewService(repo, nil)
+	cache := &MockTaskCache{}
+	svc := newTestService(repo, nil, cache)
 	repo.On("GetTaskByIdAndOwner", mock.Anything, id, userID).Return(entity, nil).Once()
 
 	res, err := svc.Update(ctx, &dto.UpdateTaskRq{ID: id, Status: "NOT_A_STATUS"})
@@ -106,4 +108,32 @@ func TestServiceUpdate_InvalidStatus(t *testing.T) {
 	assert.EqualError(t, err, "invalid status: NOT_A_STATUS")
 
 	repo.AssertExpectations(t)
+}
+
+func TestServiceUpdate_InvalidatesCacheAfterPersistence(t *testing.T) {
+	t.Parallel()
+
+	id := uuid.NewV7().String()
+	userID := uuid.NewV7().String()
+	ctx := &appcontext.Context{
+		Context:  context.Background(),
+		Identity: appcontext.Identity{UserID: userID, Permissions: []string{"update"}},
+	}
+	entity := &domaintask.Entity{
+		ID: id, UserID: userID, Title: "Old", Description: "Description",
+		Status: domaintask.StatusTodo, Priority: domaintask.PriorityLow,
+		CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC(),
+	}
+	repo := &MockTaskRepo{}
+	cache := &MockTaskCache{}
+	svc := newTestService(repo, nil, cache)
+
+	repo.On("GetTaskByIdAndOwner", mock.Anything, id, userID).Return(entity, nil).Once()
+	repo.On("UpdateByIdAndOwner", mock.Anything, entity).Return(nil).Once()
+	cache.On("Delete", mock.Anything, userID, id).Return(nil).Once()
+
+	_, err := svc.Update(ctx, &dto.UpdateTaskRq{ID: id, Title: "New"})
+
+	assert.NoError(t, err)
+	cache.AssertExpectations(t)
 }

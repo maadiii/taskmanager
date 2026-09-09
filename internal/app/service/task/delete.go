@@ -19,5 +19,7 @@ func (s *service) Delete(ctx *appcontext.Context, rq *dto.DeleteTaskRq) (*dto.De
 		return nil, err
 	}
 
+	s.invalidateTaskCache(ctx, entity.UserID, entity.ID)
+
 	return &dto.DeleteTaskRs{ID: entity.ID, Deleted: true}, nil
 }

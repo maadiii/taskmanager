@@ -19,6 +19,8 @@ func (s *service) Update(ctx *appcontext.Context, rq *dto.UpdateTaskRq) (*dto.Up
 		return nil, err
 	}
 
+	s.invalidateTaskCache(ctx, entity.UserID, entity.ID)
+
 	return &dto.UpdateTaskRs{
 		ID:               entity.ID,
 		Title:            entity.Title,

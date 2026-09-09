@@ -22,7 +22,8 @@ func TestServiceGetByID_Success(t *testing.T) {
 	ownerID := uuid.NewV7().String()
 
 	repo := &MockTaskRepo{}
-	svc := NewService(repo, nil)
+	cache := &MockTaskCache{}
+	svc := newTestService(repo, nil, cache)
 	ctx := &appcontext.Context{
 		Context: context.Background(),
 		Identity: appcontext.Identity{
@@ -42,7 +43,9 @@ func TestServiceGetByID_Success(t *testing.T) {
 		UpdatedAt:   createdAt.Add(10 * time.Minute),
 	}
 
+	cache.On("Get", mock.Anything, ownerID, id).Return((*dto.GetByIdRs)(nil), nil).Once()
 	repo.On("GetTaskByIdAndOwner", mock.Anything, id, ownerID).Return(entity, nil).Once()
+	cache.On("Set", mock.Anything, ownerID, id, mock.AnythingOfType("*dto.GetByIdRs")).Return(nil).Once()
 
 	res, err := svc.GetByID(ctx, &dto.GetByIdRq{ID: id})
 	if assert.NoError(t, err) {
@@ -64,7 +67,8 @@ func TestServiceGetByID_RepoNotFound(t *testing.T) {
 	id := uuid.NewV7().String()
 	ownerID := uuid.NewV7().String()
 	repo := &MockTaskRepo{}
-	svc := NewService(repo, nil)
+	cache := &MockTaskCache{}
+	svc := newTestService(repo, nil, cache)
 	ctx := &appcontext.Context{
 		Context: context.Background(),
 		Identity: appcontext.Identity{
@@ -72,6 +76,7 @@ func TestServiceGetByID_RepoNotFound(t *testing.T) {
 		},
 	}
 
+	cache.On("Get", mock.Anything, ownerID, id).Return((*dto.GetByIdRs)(nil), nil).Once()
 	repo.On("GetTaskByIdAndOwner", mock.Anything, id, ownerID).Return((*domaintask.Entity)(nil), errors.New("task not found")).Once()
 
 	res, err := svc.GetByID(ctx, &dto.GetByIdRq{ID: id})
@@ -79,6 +84,56 @@ func TestServiceGetByID_RepoNotFound(t *testing.T) {
 	assert.Error(t, err)
 	assert.EqualError(t, err, "task not found")
 
+	repo.AssertExpectations(t)
+}
+
+func TestServiceGetByID_CacheHit(t *testing.T) {
+	t.Parallel()
+
+	id := uuid.NewV7().String()
+	ownerID := uuid.NewV7().String()
+	repo := &MockTaskRepo{}
+	cache := &MockTaskCache{}
+	svc := newTestService(repo, nil, cache)
+	ctx := &appcontext.Context{
+		Context:  context.Background(),
+		Identity: appcontext.Identity{UserID: ownerID},
+	}
+	cached := &dto.GetByIdRs{ID: id, Title: "Cached task"}
+
+	cache.On("Get", mock.Anything, ownerID, id).Return(cached, nil).Once()
+
+	res, err := svc.GetByID(ctx, &dto.GetByIdRq{ID: id})
+
+	assert.NoError(t, err)
+	assert.Equal(t, cached, res)
+	cache.AssertExpectations(t)
+	repo.AssertNotCalled(t, "GetTaskByIdAndOwner", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestServiceGetByID_CacheMissStoresResult(t *testing.T) {
+	t.Parallel()
+
+	id := uuid.NewV7().String()
+	ownerID := uuid.NewV7().String()
+	repo := &MockTaskRepo{}
+	cache := &MockTaskCache{}
+	svc := newTestService(repo, nil, cache)
+	ctx := &appcontext.Context{
+		Context:  context.Background(),
+		Identity: appcontext.Identity{UserID: ownerID},
+	}
+	entity := &domaintask.Entity{ID: id, UserID: ownerID, Title: "Database task"}
+
+	cache.On("Get", mock.Anything, ownerID, id).Return((*dto.GetByIdRs)(nil), nil).Once()
+	repo.On("GetTaskByIdAndOwner", mock.Anything, id, ownerID).Return(entity, nil).Once()
+	cache.On("Set", mock.Anything, ownerID, id, mock.AnythingOfType("*dto.GetByIdRs")).Return(nil).Once()
+
+	res, err := svc.GetByID(ctx, &dto.GetByIdRq{ID: id})
+
+	assert.NoError(t, err)
+	assert.Equal(t, "Database task", res.Title)
+	cache.AssertExpectations(t)
 	repo.AssertExpectations(t)
 }
 

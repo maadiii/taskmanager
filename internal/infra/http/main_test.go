@@ -10,12 +10,15 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/maadiii/taskmanager/internal/app/dto"
 	"github.com/maadiii/taskmanager/internal/app/port"
 	taskservice "github.com/maadiii/taskmanager/internal/app/service/task"
 	"github.com/maadiii/taskmanager/internal/infra/persistence/postgres"
@@ -128,7 +131,27 @@ func integrationRouter() http.Handler {
 
 func newTaskService() port.TaskService {
 	repository := taskrepo.NewRepository(integrationDB)
-	return taskservice.NewService(repository, postgres.NewUoW(integrationDB))
+	service := taskservice.NewService(repository, postgres.NewUoW(integrationDB), noopTaskCache{})
+	cacheField := reflect.ValueOf(service).Elem().FieldByName("cache")
+	reflect.NewAt(cacheField.Type(), unsafe.Pointer(cacheField.UnsafeAddr())).Elem().Set(
+		reflect.ValueOf(noopTaskCache{}),
+	)
+
+	return service
+}
+
+type noopTaskCache struct{}
+
+func (noopTaskCache) Get(context.Context, string, string) (*dto.GetByIdRs, error) {
+	return nil, nil
+}
+
+func (noopTaskCache) Set(context.Context, string, string, *dto.GetByIdRs) error {
+	return nil
+}
+
+func (noopTaskCache) Delete(context.Context, string, string) error {
+	return nil
 }
 
 func truncateTasks(t *testing.T) {

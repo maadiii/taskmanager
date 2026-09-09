@@ -8,12 +8,24 @@ func NewConfig() *Config {
 	return &Config{
 		Server: new(Server).init(),
 		PgDb:   new(PgDb).init(),
+		Redis:  new(Redis).init(),
 	}
 }
 
 type Config struct {
 	Server *Server
 	PgDb   *PgDb
+	Redis  *Redis
+}
+
+type Redis struct {
+	Addr string
+}
+
+func (r *Redis) init() *Redis {
+	r.Addr = getEnvString("REDIS_ADDR")
+
+	return r
 }
 
 type Server struct {
