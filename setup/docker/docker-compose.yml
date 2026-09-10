@@ -48,10 +48,17 @@ services:
         condition: service_completed_successfully
     environment:
       PORT: 8080
+      NAME: ${NAME:-task_service}
+      OTLP_ENDPOINT: ${OTLP_ENDPOINT:-localhost:4318}
       PG_DSN: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-taskmanager}?sslmode=disable
       REDIS_ADDR: redis:6379
     ports:
       - "${API_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:8080/docs"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
 volumes:
   postgres_data:

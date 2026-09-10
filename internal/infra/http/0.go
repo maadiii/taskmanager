@@ -32,10 +32,12 @@ type Param struct {
 
 func NewApiGroupRouter(lc fx.Lifecycle, cfg *config.Config, metrics *appmetrics.Metrics) *gin.RouterGroup {
 	g := gin.Default()
+	g.Use(corsMiddleware())
 	g.Use(otelgin.Middleware(cfg.Server.Name))
 	g.Use(metrics.Middleware())
 	g.Use(errors.HandleHttpError)
 	g.GET("/metrics", gin.WrapH(metrics.Handler()))
+	routeDocs(g, cfg.Server.Port)
 	rg := g.Group("/api")
 
 	wrapped := otelhttp.NewHandler(g.Handler(), "tasks crud")
@@ -68,6 +70,23 @@ func NewApiGroupRouter(lc fx.Lifecycle, cfg *config.Config, metrics *appmetrics.
 	})
 
 	return rg
+}
+
+func corsMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+		c.Header("Access-Control-Expose-Headers", "Content-Type, request-id")
+		c.Header("Access-Control-Max-Age", "86400")
+
+		if c.Request.Method == http.MethodOptions {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+
+		c.Next()
+	}
 }
 
 func handle[

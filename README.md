@@ -26,6 +26,14 @@ For Docker execution:
 
 - Docker
 - Docker Compose plugin
+- Internet access on the first run to pull the base images
+
+Verify Docker before starting:
+
+```bash
+docker --version
+docker compose version
+```
 
 ## Local Execution
 
@@ -66,11 +74,31 @@ Run the tests:
 
 ## Docker Compose
 
-Run this command from the project root:
+### Quick start
+
+Clone the repository and enter its root directory:
 
 ```bash
-docker compose -f setup/docker/docker-compose.yml up -d
+git clone https://github.com/maadiii/taskmanager.git
+cd taskmanager
 ```
+
+No Go, PostgreSQL, Redis, or `migrate` installation is required for Docker.
+Run these commands from the project root:
+
+```bash
+docker compose -f setup/docker/docker-compose.yml up -d --build
+```
+
+`--build` is required the first time and whenever Go source code or the
+Dockerfile changes. Docker runs the API on port `8080` inside the container;
+`API_PORT` controls the host port and is independent of the local development
+`.env` value for `PORT`.
+
+The Compose file contains defaults for all Docker settings. It does not require
+the local `.env` file; do not copy local PostgreSQL or Redis addresses into the
+container configuration. Compose uses the service names `db` and `redis` for
+internal communication.
 
 Compose starts the following services:
 
@@ -122,11 +150,11 @@ Default values:
 - API: `8080`
 - PostgreSQL: `5432`
 
-If the ports are already in use:
+If a host port is already in use:
 
 ```bash
 POSTGRES_PORT=5544 API_PORT=8081 \
-docker compose -f setup/docker/docker-compose.yml up -d
+docker compose -f setup/docker/docker-compose.yml up -d --build
 ```
 
 In this case, the API is available at:
@@ -146,6 +174,59 @@ http://localhost:8081
 | `REDIS_PORT` | `6379` | Redis host port |
 | `API_PORT` | `8080` | API host port |
 
+`PORT` is not used to configure the container's published port. Keep the
+container port at `8080` and set `API_PORT` when the host port is occupied:
+
+```bash
+API_PORT=8000 docker compose -f setup/docker/docker-compose.yml up -d --build
+```
+
+Then open `http://localhost:8000/docs`.
+
+The same host port must be used for all API URLs:
+
+```bash
+curl http://localhost:8000/docs
+curl http://localhost:8000/openapi.json
+curl http://localhost:8000/metrics
+```
+
+### Verify a clean Docker deployment
+
+```bash
+docker compose -f setup/docker/docker-compose.yml ps -a
+curl http://localhost:${API_PORT:-8080}/docs
+curl http://localhost:${API_PORT:-8080}/openapi.json
+```
+
+The expected state is `api Up (healthy)`, `db Up (healthy)`, and
+`migrate Exited (0)`.
+If the API is not running, inspect the startup error with:
+
+```bash
+docker compose -f setup/docker/docker-compose.yml logs api
+```
+
+Common fixes:
+
+```bash
+# Rebuild after Go, Dockerfile, Compose, or OpenAPI changes
+docker compose -f setup/docker/docker-compose.yml up -d --build
+
+# Check the rendered configuration and resolved defaults
+docker compose -f setup/docker/docker-compose.yml config
+
+# Stop containers without deleting database data
+docker compose -f setup/docker/docker-compose.yml down
+```
+
+Use `down -v` only when you intentionally want to delete the PostgreSQL
+volume and all stored task data:
+
+```bash
+docker compose -f setup/docker/docker-compose.yml down -v
+```
+
 ## API
 
 Base URL:
@@ -153,6 +234,34 @@ Base URL:
 ```text
 http://localhost:8080/api/v1/tasks
 ```
+
+### OpenAPI and Swagger UI
+
+The complete OpenAPI 3 document is available at:
+
+```text
+http://localhost:8080/openapi.json
+```
+
+Open the interactive Swagger UI at:
+
+```text
+http://localhost:8080/docs
+```
+
+The specification documents every task endpoint, path/query/body input,
+response schema, response `request-id` header, pagination parameters, status
+and priority enums, and the available error responses. Errors use a stable
+JSON shape:
+
+```json
+{
+  "key": "TASK_ID_NOT_FOUND"
+}
+```
+
+Known error keys include `BAD_REQUEST`, `FORBIDDEN`, `TASK_ID_NOT_FOUND`,
+`TASK_TITLE_ALREADY_EXISTS`, and `INTERNAL_SERVER_ERROR`.
 
 ### Prometheus metrics
 

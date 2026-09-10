@@ -102,7 +102,15 @@ func provideCache() fx.Option {
 }
 
 func provideMetrics() fx.Option {
-	return fx.Provide(appmetrics.New)
+	return fx.Provide(
+		appmetrics.New,
+		fx.Annotate(
+			func(metrics *appmetrics.Metrics) port.TaskMetrics {
+				return metrics
+			},
+			fx.As(new(port.TaskMetrics)),
+		),
+	)
 }
 
 func provideDomain() fx.Option {
