@@ -462,6 +462,54 @@ The application logic is separated from the core and its adapters:
 This keeps application services independent of Gin and PostgreSQL. The adapters
 are connected to the application through dependency injection.
 
+### Architecture Diagram
+
+```mermaid
+flowchart LR
+    Client[HTTP Client]
+
+    subgraph Composition["Composition Root"]
+        Fx[cmd/api<br/>Fx dependency injection]
+    end
+
+    subgraph Adapters["Infrastructure Adapters"]
+        HTTP[HTTP Adapter<br/>Gin routes, binding, middleware]
+        Metrics[Prometheus Metrics<br/>request counters, latency, tasks count]
+        PG[PostgreSQL Adapter<br/>Task repository]
+        Redis[Redis Adapter<br/>Task cache]
+    end
+
+    subgraph Core["Application Core"]
+        Service[Task Application Service<br/>Create, List, Get, Update, Delete]
+        Ports[Ports<br/>TaskService, TaskRepo, TaskCache, TaskMetrics]
+        Domain[Task Domain Entity<br/>business rules, status, priority]
+    end
+
+    DB[(PostgreSQL)]
+    Cache[(Redis)]
+    Prometheus[Prometheus]
+
+    Client --> HTTP
+    HTTP --> Service
+    Service --> Domain
+    Service --> Ports
+    Ports -. implemented by .-> PG
+    Ports -. implemented by .-> Redis
+    Ports -. implemented by .-> Metrics
+    PG --> DB
+    Redis --> Cache
+    Metrics --> Prometheus
+    Fx -. wires .-> HTTP
+    Fx -. wires .-> Service
+    Fx -. wires .-> PG
+    Fx -. wires .-> Redis
+    Fx -. wires .-> Metrics
+```
+
+The dependency direction points toward the application core: infrastructure
+adapters implement application ports, while Fx wires the concrete
+implementations at startup.
+
 Prometheus metrics follow the same composition-root approach. The metrics
 component is constructed in `cmd/api/main.go` with Fx, receives the PostgreSQL
 executor through its port, and is injected into the HTTP router. Business
@@ -520,3 +568,88 @@ histograms, and the task-count collector. Run all tests with:
 ```bash
 /usr/local/go/bin/go test ./... -count=1
 ```
+
+## Benchmark and pprof Results
+
+The repository includes an HTTP benchmark for the task list endpoint. It seeds
+10,000 tasks in PostgreSQL, then measures a 20-item first page and a 20-item
+cursor page filtered by `status=TODO`. The seed and database setup are excluded
+from the timed section.
+
+Docker must be available because the integration test starts a temporary
+PostgreSQL container automatically. Run:
+
+```bash
+/usr/local/go/bin/go test ./internal/infra/http \
+  -run '^$' \
+  -bench BenchmarkTaskListCursorPagination \
+  -benchmem \
+  -count=5
+```
+
+To capture CPU and memory profiles for the same scenario:
+
+```bash
+/usr/local/go/bin/go test ./internal/infra/http \
+  -run '^$' \
+  -bench BenchmarkTaskListCursorPagination \
+  -benchmem \
+  -cpuprofile=cpu.out \
+  -memprofile=memory.out
+```
+
+Inspect the profiles with:
+
+```bash
+/usr/local/go/bin/go tool pprof -top cpu.out
+/usr/local/go/bin/go tool pprof -top memory.out
+```
+
+Example from one local run (Intel i5-10210U, PostgreSQL in Docker):
+
+```text
+first-page:  3.21 ms/op, 38.4 KB/op, 215 allocs/op
+cursor-page: 1.91 ms/op, 37.0 KB/op, 210 allocs/op
+```
+
+The benchmark command produced output equivalent to:
+
+```text
+BenchmarkTaskListCursorPagination/first-page-8
+     717    3214479 ns/op    38388 B/op    215 allocs/op
+BenchmarkTaskListCursorPagination/cursor-page-8
+    1236    1908975 ns/op    37883 B/op    210 allocs/op
+```
+
+The corresponding CPU profile (`go tool pprof -top cpu.out`) included:
+
+```text
+flat  flat%   function
+30ms  4.69%   runtime.memclrNoHeapPointers
+30ms  4.69%   runtime.tryDeferToSpanScan
+30ms  4.69%   runtime.typePointers.next
+20ms  3.12%   github.com/jackc/pgx/v5/pgxpool.(*connResource).getPoolRows
+20ms  3.12%   internal/runtime/syscall/linux.Syscall6
+```
+
+CPU time was distributed mainly across system calls, runtime synchronization,
+memory copying, JSON encoding, and HTTP processing. No single application
+function dominated the CPU profile.
+
+The memory profile (`go tool pprof -top memory.out`) included:
+
+```text
+flat       flat%   function
+30.58MB    31.70%  internal/infra/persistence/postgres/task.(*repo).List
+11.04MB    11.45%  bufio.NewReaderSize
+ 6.53MB     6.77%  bytes.Clone
+ 4.01MB     4.16%  bytes.growSlice
+ 4.00MB     4.15%  internal/app/service/task.(*service).getByIdRs
+```
+
+The largest amount of allocated memory came from reading task rows from
+PostgreSQL, copying/growing buffers, scanning pgx values, and building the API
+response. These are total allocations during the profile, not necessarily
+memory that remains allocated permanently; the garbage collector may release
+temporary allocations. These values are an example report, not a performance
+guarantee.
