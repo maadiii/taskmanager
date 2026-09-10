@@ -33,6 +33,8 @@ func (s *service) create(ctx context.Context, task *task.Entity) error {
 			return err
 		}
 
+		s.metrics.IncTasks()
+
 		// Do another uow related that may will be failed(just return err to rollback)
 		// if err := raiseTaskEvent(); err != nil {
 		// 	return err

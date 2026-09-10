@@ -27,10 +27,7 @@ func NewTaskCache(client *redis.Client, tracer trace.Tracer) *TaskCache {
 }
 
 func (c *TaskCache) Get(ctx context.Context, userID, taskID string) (*dto.GetByIdRs, error) {
-	operationCtx, cancel := context.WithTimeout(ctx, cacheOperationTimeout)
-	defer cancel()
-
-	value, err := c.client.Get(operationCtx, taskKey(userID, taskID)).Result()
+	value, err := c.client.Get(ctx, taskKey(userID, taskID)).Result()
 	if errors.Is(err, redis.Nil) {
 		return nil, nil
 	}
@@ -59,10 +56,7 @@ func (c *TaskCache) Set(ctx context.Context, userID, taskID string, task *dto.Ge
 }
 
 func (c *TaskCache) Delete(ctx context.Context, userID, taskID string) error {
-	operationCtx, cancel := context.WithTimeout(ctx, cacheOperationTimeout)
-	defer cancel()
-
-	return c.client.Del(operationCtx, taskKey(userID, taskID)).Err()
+	return c.client.Del(ctx, taskKey(userID, taskID)).Err()
 }
 
 func taskKey(userID, taskID string) string {

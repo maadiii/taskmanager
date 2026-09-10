@@ -45,7 +45,9 @@ func TestServiceCreate_Success(t *testing.T) {
 	})).Return(nil).Once()
 
 	cache := &MockTaskCache{}
-	svc := newTestService(taskRepo, uowMock, cache)
+	metrics := &MockTaskMetrics{}
+	metrics.On("IncTasks").Once()
+	svc := newTestService(taskRepo, uowMock, cache, metrics)
 	rq := &dto.CreateTaskRq{Title: "Fix parser", Description: "Fix parsing bug in uploader"}
 
 	res, err := svc.Create(ctx, rq)
@@ -60,6 +62,7 @@ func TestServiceCreate_Success(t *testing.T) {
 
 	repoFactory.AssertExpectations(t)
 	taskRepo.AssertExpectations(t)
+	metrics.AssertExpectations(t)
 }
 
 func TestServiceCreate_ForbiddenByDomainRule(t *testing.T) {
@@ -75,7 +78,7 @@ func TestServiceCreate_ForbiddenByDomainRule(t *testing.T) {
 
 	uowMock := &MockUoW{}
 	cache := &MockTaskCache{}
-	svc := newTestService(&MockTaskRepo{}, uowMock, cache)
+	svc := newTestService(&MockTaskRepo{}, uowMock, cache, testTaskMetrics{})
 
 	res, err := svc.Create(ctx, &dto.CreateTaskRq{Title: "Bad title", Description: "desc"})
 	assert.Nil(t, res)
@@ -107,7 +110,7 @@ func TestServiceCreate_RepoCreateFailure(t *testing.T) {
 	})).Return(errors.New("db failed")).Once()
 
 	cache := &MockTaskCache{}
-	svc := newTestService(taskRepo, uowMock, cache)
+	svc := newTestService(taskRepo, uowMock, cache, testTaskMetrics{})
 	res, err := svc.Create(ctx, &dto.CreateTaskRq{Title: "Retry me", Description: "test desc"})
 	assert.Nil(t, res)
 	assert.EqualError(t, err, "db failed")
@@ -149,7 +152,7 @@ func TestServiceCreate_UsesUUIDv7ForEntityID(t *testing.T) {
 	})).Return(nil).Once()
 
 	cache := &MockTaskCache{}
-	svc := newTestService(taskRepo, uowMock, cache)
+	svc := newTestService(taskRepo, uowMock, cache, testTaskMetrics{})
 	res, err := svc.Create(ctx, &dto.CreateTaskRq{Title: "uuid check", Description: "verify id format"})
 	assert.NoError(t, err)
 	assert.NotEmpty(t, res.ID)

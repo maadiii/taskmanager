@@ -21,6 +21,7 @@ func (s *service) Delete(ctx *appcontext.Context, rq *dto.DeleteTaskRq) (*dto.De
 	if err := s.repo.DeleteByIdAndOwner(c, entity.ID, entity.UserID); err != nil {
 		return nil, err
 	}
+	s.metrics.DecTasks()
 
 	s.invalidateTaskCache(ctx, entity.UserID, entity.ID)
 

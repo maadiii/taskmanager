@@ -11,6 +11,7 @@ import (
 	"github.com/maadiii/taskmanager/internal/infra/http"
 	"github.com/maadiii/taskmanager/internal/infra/persistence/postgres"
 	taskPg "github.com/maadiii/taskmanager/internal/infra/persistence/postgres/task"
+	appmetrics "github.com/maadiii/taskmanager/pkg/metrics"
 	"github.com/maadiii/taskmanager/pkg/observ"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/trace"
@@ -27,6 +28,7 @@ func main() {
 		fx.Invoke(observ.InitTrace),
 		providePgDb(),
 		provideCache(),
+		provideMetrics(),
 		provideRepos(),
 		provideDomain(),
 		provideHttp(),
@@ -99,11 +101,15 @@ func provideCache() fx.Option {
 	)
 }
 
+func provideMetrics() fx.Option {
+	return fx.Provide(appmetrics.New)
+}
+
 func provideDomain() fx.Option {
 	return fx.Provide(
 		fx.Annotate(
 			task.NewService,
-			fx.ParamTags(``, ``, ``, `name:"service"`),
+			fx.ParamTags(``, ``, ``, `name:"service"`, ``),
 			fx.As(new(port.TaskService)),
 		),
 	)

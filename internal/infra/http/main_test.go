@@ -146,7 +146,7 @@ func newTaskService() port.TaskService {
 	repository := contextFreeTaskRepo{repo: taskrepo.NewRepository(integrationDB, tracer)}
 	return taskservice.NewService(repository, integrationUoW{
 		factory: contextFreeRepoFactory{repo: repository},
-	}, noopTaskCache{}, tracer)
+	}, noopTaskCache{}, tracer, noopTaskMetrics{})
 }
 
 type integrationUoW struct {
@@ -212,6 +212,12 @@ func (integrationUoW) Rollback(context.Context) error {
 var _ uow.UoW[port.RepoFactory] = integrationUoW{}
 
 type noopTaskCache struct{}
+
+type noopTaskMetrics struct{}
+
+func (noopTaskMetrics) IncTasks() {}
+
+func (noopTaskMetrics) DecTasks() {}
 
 func (noopTaskCache) Get(context.Context, string, string) (*dto.GetByIdRs, error) {
 	return nil, nil

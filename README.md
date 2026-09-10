@@ -12,6 +12,7 @@ principles.
 - Sort by `id` in descending order
 - Versioned migrations with `golang-migrate`
 - Redis cache-aside for task reads with update/delete invalidation
+- Prometheus metrics for request totals, latency, and current task count
 - Run PostgreSQL, migrations, and the API with Docker Compose
 
 ## Prerequisites
@@ -152,6 +153,39 @@ Base URL:
 ```text
 http://localhost:8080/api/v1/tasks
 ```
+
+### Prometheus metrics
+
+Prometheus metrics are exposed at:
+
+```bash
+curl http://localhost:8080/metrics
+```
+
+The API publishes:
+
+- `requests_total{method,route,status}`: total HTTP requests
+- `request_latency_histogram{method,route}`: request latency in seconds
+- `tasks_count`: current number of rows in the `tasks` table
+
+The HTTP metrics use stable route templates such as `/api/v1/tasks/:id`
+instead of raw URLs, which prevents a separate time series for every task ID.
+The `tasks_count` gauge is initialized from PostgreSQL at startup, incremented
+after a successful task creation, and decremented after a successful deletion.
+It therefore reflects the task mutations handled by the running API process.
+
+To scrape the API with Prometheus, add this job to `prometheus.yml`:
+
+```yaml
+scrape_configs:
+  - job_name: taskmanager
+    static_configs:
+      - targets: ["host.docker.internal:8080"]
+```
+
+When Prometheus runs directly on the host, use `localhost:8080` instead.
+After updating the configuration, start Prometheus and open its targets page
+to verify that the `taskmanager` target is `UP`.
 
 In the examples below, replace `8080` with your API port if Compose is running
 with a custom port.
@@ -295,6 +329,8 @@ internal/
   infra/
     http/                        Routes, binding, and middleware
     persistence/postgres/        PostgreSQL adapter
+pkg/
+  metrics/                       Prometheus collectors and HTTP middleware
 setup/
   migrations/                    Versioned migrations
   docker/                        Dockerfile, Compose, and migration script
@@ -316,6 +352,11 @@ The application logic is separated from the core and its adapters:
 
 This keeps application services independent of Gin and PostgreSQL. The adapters
 are connected to the application through dependency injection.
+
+Prometheus metrics follow the same composition-root approach. The metrics
+component is constructed in `cmd/api/main.go` with Fx, receives the PostgreSQL
+executor through its port, and is injected into the HTTP router. Business
+services do not import Prometheus directly.
 
 ### Domain-Driven Design
 
@@ -363,3 +404,10 @@ The HTTP tests use a real PostgreSQL instance in Docker. Run them with:
 
 Before running, the test starts PostgreSQL and applies the migrations. After the
 test completes, it removes the container.
+
+The metrics package also includes a unit test for request counters, latency
+histograms, and the task-count collector. Run all tests with:
+
+```bash
+/usr/local/go/bin/go test ./... -count=1
+```

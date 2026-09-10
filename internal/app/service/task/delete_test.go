@@ -27,7 +27,9 @@ func TestServiceDelete_Success(t *testing.T) {
 
 	repo := &MockTaskRepo{}
 	cache := &MockTaskCache{}
-	svc := newTestService(repo, nil, cache)
+	metrics := &MockTaskMetrics{}
+	metrics.On("DecTasks").Once()
+	svc := newTestService(repo, &MockUoW{}, cache, metrics)
 	entity := &domaintask.Entity{ID: id, UserID: userID}
 	repo.On("GetTaskByIdAndOwner", mock.Anything, id, userID).Return(entity, nil).Once()
 	repo.On("DeleteByIdAndOwner", mock.Anything, id, userID).Return(nil).Once()
@@ -40,6 +42,7 @@ func TestServiceDelete_Success(t *testing.T) {
 	}
 
 	repo.AssertExpectations(t)
+	metrics.AssertExpectations(t)
 }
 
 func TestServiceDelete_Forbidden(t *testing.T) {
@@ -57,7 +60,7 @@ func TestServiceDelete_Forbidden(t *testing.T) {
 
 	repo := &MockTaskRepo{}
 	cache := &MockTaskCache{}
-	svc := newTestService(repo, nil, cache)
+	svc := newTestService(repo, &MockUoW{}, cache, testTaskMetrics{})
 	repo.On("GetTaskByIdAndOwner", mock.Anything, id, userID).
 		Return(&domaintask.Entity{ID: id, UserID: userID}, nil).Once()
 
@@ -78,7 +81,7 @@ func TestServiceDelete_InvalidatesCacheAfterPersistence(t *testing.T) {
 	}
 	repo := &MockTaskRepo{}
 	cache := &MockTaskCache{}
-	svc := newTestService(repo, nil, cache)
+	svc := newTestService(repo, &MockUoW{}, cache, testTaskMetrics{})
 	entity := &domaintask.Entity{ID: id, UserID: userID}
 
 	repo.On("GetTaskByIdAndOwner", mock.Anything, id, userID).Return(entity, nil).Once()

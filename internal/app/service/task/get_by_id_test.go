@@ -23,7 +23,7 @@ func TestServiceGetByID_Success(t *testing.T) {
 
 	repo := &MockTaskRepo{}
 	cache := &MockTaskCache{}
-	svc := newTestService(repo, nil, cache)
+	svc := newTestService(repo, &MockUoW{}, cache, testTaskMetrics{})
 	ctx := &appcontext.Context{
 		Context: context.Background(),
 		Identity: appcontext.Identity{
@@ -68,7 +68,7 @@ func TestServiceGetByID_RepoNotFound(t *testing.T) {
 	ownerID := uuid.NewV7().String()
 	repo := &MockTaskRepo{}
 	cache := &MockTaskCache{}
-	svc := newTestService(repo, nil, cache)
+	svc := newTestService(repo, &MockUoW{}, cache, testTaskMetrics{})
 	ctx := &appcontext.Context{
 		Context: context.Background(),
 		Identity: appcontext.Identity{
@@ -94,7 +94,7 @@ func TestServiceGetByID_CacheHit(t *testing.T) {
 	ownerID := uuid.NewV7().String()
 	repo := &MockTaskRepo{}
 	cache := &MockTaskCache{}
-	svc := newTestService(repo, nil, cache)
+	svc := newTestService(repo, &MockUoW{}, cache, testTaskMetrics{})
 	ctx := &appcontext.Context{
 		Context:  context.Background(),
 		Identity: appcontext.Identity{UserID: ownerID},
@@ -118,7 +118,7 @@ func TestServiceGetByID_CacheMissStoresResult(t *testing.T) {
 	ownerID := uuid.NewV7().String()
 	repo := &MockTaskRepo{}
 	cache := &MockTaskCache{}
-	svc := newTestService(repo, nil, cache)
+	svc := newTestService(repo, &MockUoW{}, cache, testTaskMetrics{})
 	ctx := &appcontext.Context{
 		Context:  context.Background(),
 		Identity: appcontext.Identity{UserID: ownerID},

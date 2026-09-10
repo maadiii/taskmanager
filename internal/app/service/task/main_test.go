@@ -88,8 +88,26 @@ type MockTaskCache struct {
 	mock.Mock
 }
 
-func newTestService(repo port.TaskRepo, uow uow.UoW[port.RepoFactory], cache port.TaskCache) *service {
-	return &service{repo: repo, uow: uow, cache: cache, tracer: testTracer()}
+type MockTaskMetrics struct {
+	mock.Mock
+}
+
+type testTaskMetrics struct{}
+
+func (testTaskMetrics) IncTasks() {}
+
+func (testTaskMetrics) DecTasks() {}
+
+func (m *MockTaskMetrics) IncTasks() {
+	m.Called()
+}
+
+func (m *MockTaskMetrics) DecTasks() {
+	m.Called()
+}
+
+func newTestService(repo port.TaskRepo, uow uow.UoW[port.RepoFactory], cache port.TaskCache, metrics port.TaskMetrics) *service {
+	return &service{repo: repo, uow: uow, cache: cache, tracer: testTracer(), metrics: metrics}
 }
 
 func testTracer() trace.Tracer {

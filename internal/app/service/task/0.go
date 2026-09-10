@@ -12,10 +12,11 @@ import (
 )
 
 type service struct {
-	repo   port.TaskRepo
-	uow    uow.UoW[port.RepoFactory]
-	cache  port.TaskCache
-	tracer trace.Tracer
+	repo    port.TaskRepo
+	uow     uow.UoW[port.RepoFactory]
+	cache   port.TaskCache
+	tracer  trace.Tracer
+	metrics port.TaskMetrics
 }
 
 func NewService(
@@ -23,8 +24,9 @@ func NewService(
 	uow uow.UoW[port.RepoFactory],
 	cache port.TaskCache,
 	tracer trace.Tracer,
+	metrics port.TaskMetrics,
 ) *service {
-	return &service{repo: repo, uow: uow, cache: cache, tracer: tracer}
+	return &service{repo: repo, uow: uow, cache: cache, tracer: tracer, metrics: metrics}
 }
 
 func (s *service) getCachedTask(ctx context.Context, userID, taskID string) *dto.GetByIdRs {

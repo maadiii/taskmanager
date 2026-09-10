@@ -14,6 +14,11 @@ type TaskCache interface {
 	Delete(ctx context.Context, userID, taskID string) error
 }
 
+type TaskMetrics interface {
+	IncTasks()
+	DecTasks()
+}
+
 type Execer interface {
 	Exec(ctx context.Context, sql string, arguments ...any) (commandTag pgconn.CommandTag, err error)
 	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
